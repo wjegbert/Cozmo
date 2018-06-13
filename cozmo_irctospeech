@@ -1,0 +1,67 @@
+import socket
+import re
+import cozmo
+
+
+shouldRun = True
+
+script = ""
+def quiter():
+	global shouldRun
+	shouldRun = False
+cmds = {
+		"quit": (lambda: quiter())
+		}
+def cozmo_program(robot: cozmo.robot.Robot):
+        robot.say_text(script, use_cozmo_voice=False, duration_scalar=0.5).wait_for_completed()
+        
+        
+def joinchan(chan): 
+	ircsock.send(bytes("JOIN "+ chan +"\n", "UTF-8")) 
+	ircmsg = ""
+	while ircmsg.find("End of /NAMES list.") == -1: 
+		ircmsg = ircsock.recv(2048).decode("UTF-8")
+		ircmsg = ircmsg.strip('\n\r')
+
+		if len(ircmsg) == 0:
+			break
+		print("INFO: " + ircmsg)
+
+def ping(): 
+	ircsock.send(bytes("PONG :pingis\n", "UTF-8"))
+
+
+ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server = "chat.freenode.net" 
+channel = "##cozmo-test" 
+botnick = "HI0IM0COZMO" 
+exitcode = "bye " + botnick 
+
+ircsock.connect((server, 6667)) 
+ircsock.send(bytes("USER " + botnick + " " + botnick + " " + botnick + " " + botnick + "\n", "UTF-8")) 
+ircsock.send(bytes("NICK " + botnick + "\n", "UTF-8")) 
+
+#
+joinchan(channel)
+
+pattern = re.compile('[^:]+$')
+pcmd = re.compile("^\*(\w+)")
+
+while (shouldRun):
+	ircmsg = ircsock.recv(2048).decode("UTF-8")
+	ircmsg = ircmsg.strip('\n\r')
+
+	if ircmsg.find("PING :") != -1:
+		ping()
+	
+	if len(ircmsg) == 0:
+		continue
+
+	m = pattern.search(ircmsg)
+	script = m.group()
+	c = pcmd.search(script)
+	if c :
+		cmds[c.group()[1:]]()
+	else:
+		print("MSG: " + script)
+		cozmo.run_program(cozmo_program)
